@@ -1,0 +1,244 @@
+---
+title: "prepare EGFP seurat obj"
+author: "Yifang Liu"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::html_clean:
+    code_folding: hide
+    fig_width: 10
+    fig_height: 10
+    highlight: kate
+    thumbnails: false
+    lightbox: true
+    gallery: true
+---
+
+```{r knitr_init, echo=FALSE, cache=FALSE}
+library(knitr)
+library(rmdformats)
+
+options(max.print = 200)
+opts_chunk$set(echo = TRUE,
+               cache = FALSE,
+               prompt = FALSE,
+               tidy = TRUE,
+               comment = NA,
+               message = FALSE,
+               warning = FALSE,
+               dev = c('png', 'pdf'),
+               fig.width = 10,
+               fig.height = 10,
+               fig.align = "center",
+               fig.path = 'PDF_2020-02-05_prepare_EGFP_seurat_obj/',
+               dpi = 72)
+opts_knit$set(width = 75)
+```
+
+```{r setup}
+set.seed(123)
+
+npc <- 20
+# theta1 <- 2
+# theta2 <- 5
+# theta <- c(theta1, theta2)
+resolution <- 0.1
+pt_size <- 1
+
+# Suppress loading messages
+suppressPackageStartupMessages({
+  library(Matrix)
+  library(dplyr)
+  library(tidyverse)
+  library(Seurat)
+  library(cowplot)
+  library(Rcpp)
+  library(harmony)
+  library(SoupX)
+})
+```
+
+# Harmony
+
+```{r}
+# initialize
+EGFP <- readRDS("Data/2020-02-05_EGFP_matrix.Rds")
+EGFP <- CreateSeuratObject(counts = EGFP, project = "EGFP")
+EGFP <- NormalizeData(EGFP, verbose = FALSE)
+EGFP <- FindVariableFeatures(EGFP, selection.method = "vst", nfeatures = 2000)
+all_genes <- rownames(EGFP)
+EGFP <- ScaleData(EGFP, features = all_genes, verbose = FALSE)
+EGFP <- RunPCA(EGFP, features = VariableFeatures(object = EGFP), npcs = npc, verbose = FALSE)
+
+# metadata
+EGFP$percent_mito <- PercentageFeatureSet(EGFP, pattern = "^mt:")
+EGFP$log2nGene <- log2(EGFP$nFeature_RNA)
+EGFP$log2nUMI <- log2(EGFP$nCount_RNA)
+
+# EGFP$Condition <- c(
+#   rep("EGFP", sum(
+#     sum(grepl("G0", colnames(EGFP))),
+#     sum(grepl("G1", colnames(EGFP)))
+#   )),
+#   rep("TSC1", sum(
+#     sum(grepl("T0", colnames(EGFP))),
+#     sum(grepl("T1", colnames(EGFP)))
+#   ))
+# )
+
+# my_levels <- c("EGFP", "TSC1")
+
+# EGFP$Condition <- factor(x = EGFP$Condition, levels = my_levels)
+
+# EGFP$LibraryID <- c(
+#   rep("G0", sum(grepl("G0", colnames(EGFP)))),
+#   rep("G1", sum(grepl("G1", colnames(EGFP)))),
+#   rep("T0", sum(grepl("T0", colnames(EGFP)))),
+#   rep("T1", sum(grepl("T1", colnames(EGFP))))
+# )
+# 
+# my_levels <- c("G0", "G1", "T0", "T1")
+# 
+# EGFP$LibraryID <- factor(x = EGFP$LibraryID, levels = my_levels)
+
+EGFP$LibraryID <- c(
+  rep("G0", sum(grepl("G0", colnames(EGFP)))),
+  rep("G1", sum(grepl("G1", colnames(EGFP))))
+)
+
+my_levels <- c("G0", "G1")
+
+EGFP$LibraryID <- factor(x = EGFP$LibraryID, levels = my_levels)
+
+# EGFP$Batch <- c(
+#   rep("Batch0812", sum(grepl("G0", colnames(EGFP)))),
+#   rep("Batch0819", sum(grepl("G1", colnames(EGFP)))),
+#   rep("Batch0812", sum(grepl("T0", colnames(EGFP)))),
+#   rep("Batch0819", sum(grepl("T1", colnames(EGFP))))
+# )
+# 
+# my_levels <- c("Batch0812", "Batch0819")
+# 
+# EGFP$Batch <- factor(x = EGFP$Batch, levels = my_levels)
+
+write.csv(EGFP@meta.data, file = "Data/2020-02-05_EGFP_metadata.csv")
+
+# RunHarmony
+
+# EGFP <- EGFP %>%
+#   RunHarmony(c("Condition", "Batch"), theta = theta, plot_convergence = FALSE, max.iter.harmony = 20)
+
+EGFP <- EGFP %>%
+  RunHarmony("LibraryID", plot_convergence = FALSE, max.iter.harmony = 20)
+
+EGFP <- EGFP %>%
+  RunUMAP(reduction = "harmony", dims = 1:npc) %>%
+  RunTSNE(reduction = "harmony", dims = 1:npc) %>%
+  FindNeighbors(reduction = "harmony", dims = 1:npc, verbose = FALSE, force.recalc = TRUE) %>%
+  FindClusters(resolution = seq(0.1, 1, 1), verbose = FALSE) %>%
+  identity()
+
+saveRDS(EGFP, file = "Data/2020-02-05_EGFP_seurat_obj.Rds")
+```
+
+# Condition / Batch / LibraryID / log2nGene / log2nUMI / Percent mito - UMAP {.tabset}
+
+<!-- ## Condition -->
+
+<!-- ```{r Condition_umap} -->
+<!-- DimPlot(EGFP, reduction = "umap", group.by = "Condition", pt.size = pt_size) -->
+<!-- ``` -->
+
+<!-- ## Batch -->
+
+<!-- ```{r Batch_umap} -->
+<!-- DimPlot(EGFP, reduction = "umap", group.by = "Batch", pt.size = pt_size) -->
+<!-- ``` -->
+
+## LibraryID
+
+```{r libraryid_umap}
+DimPlot(EGFP, reduction = "umap", group.by = "LibraryID", pt.size = pt_size)
+```
+
+## log2nGene
+
+```{r log2nGene_umap}
+FeaturePlot(EGFP, reduction = "umap", features = c("log2nGene"), pt.size = pt_size)
+```
+
+## log2nUMI
+
+```{r log2nUMI_umap}
+FeaturePlot(EGFP, reduction = "umap", features = c("log2nUMI"), pt.size = pt_size)
+```
+
+## Percent mito
+
+```{r percent_mito_umap}
+FeaturePlot(EGFP, reduction = "umap", features = c("percent_mito"), pt.size = pt_size)
+```
+
+# UMAP - resolutions {.tabset}
+
+In the UMAP embedding, we can see more intricate structure. Since we used harmony embeddings, the UMAP embeddings are well mixed.
+
+```{r UMAP_resolutions, results = 'asis'}
+for(res in seq(0.1, 1, 1)){
+  cat("\n")
+  cat("\n## ", "Cluster resolution: ", res, "{.tabset}\n")
+  selected_res <- paste0("RNA_snn_res.", res)
+  Idents(EGFP) <- selected_res
+  p <- DimPlot(EGFP, reduction = "umap", label = TRUE, pt.size = pt_size)
+  print(p)
+  cat("\n")
+}
+```
+
+# UMAP - Resolutions - Split {.tabset}
+
+In the UMAP embedding, we can see more intricate structure. Since we used harmony embeddings, the UMAP embeddings are well mixed.
+
+```{r umap_resolutions_split, results = 'asis'}
+for(res in seq(0.1, 1, 1)){
+  cat("\n")
+  cat("\n## ", "Cluster resolution: ", res, "{.tabset}\n")
+  selected_res <- paste0("RNA_snn_res.", res)
+  Idents(EGFP) <- selected_res
+  p <- DimPlot(EGFP, reduction = "umap", label = TRUE, split.by = "LibraryID", pt.size = pt_size)
+  print(p)
+  cat("\n")
+}
+```
+
+# Notes
+
+2020-02-05:
+
+  * Only analysis EGFP.
+
+Sat Nov 30, 2019:
+
+  * prepare EGFP TSC1 seurat object.
+
+Tue Oct 29, 2019:
+
+  * use SoupX fixed 0.45 to remove ambient RNA.
+
+Mon Oct 7, 2019:
+
+  * Add more sequence depth.
+
+Mon, Sep 30, 2019:
+
+  * remove genes: EGFP, Tsc1, gig. Then perform integrate analysis of EGFP, TSC1.
+
+Fri, Sep 20, 2019:
+
+  * First version for integrate analysis of EGFP, TSC1.
+
+# Session Info
+
+```{r sessioninfo, message=TRUE}
+sessionInfo()
+```
+

@@ -1,0 +1,121 @@
+---
+title: "prepare EGFP markers"
+author: "Yifang Liu"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::html_clean:
+    code_folding: hide
+    fig_width: 10
+    fig_height: 10
+    highlight: kate
+    thumbnails: false
+    lightbox: true
+    gallery: true
+---
+
+```{r knitr_init, echo=FALSE, cache=FALSE}
+library(knitr)
+library(rmdformats)
+
+options(max.print = 200)
+opts_chunk$set(echo = TRUE,
+               cache = FALSE,
+               prompt = FALSE,
+               tidy = TRUE,
+               comment = NA,
+               message = FALSE,
+               warning = FALSE,
+               dev = c('png', 'pdf'),
+               fig.width = 10,
+               fig.height = 10,
+               fig.align = "center",
+               fig.path = 'PDF/',
+               dpi = 72)
+opts_knit$set(width = 75)
+```
+
+```{r setup}
+set.seed(123)
+
+npc <- 20
+# theta1 <- 2
+# theta2 <- 5
+# theta <- c(theta1, theta2)
+resolution <- 0.1
+pt_size <- 2
+
+# Suppress loading messages
+suppressPackageStartupMessages({
+  library(Matrix)
+  library(dplyr)
+  library(tidyverse)
+  library(Seurat)
+  library(cowplot)
+  library(Rcpp)
+  library(harmony)
+  library(SoupX)
+})
+```
+
+```{r load_data}
+EGFP <- readRDS("Data/2020-02-05_EGFP_seurat_obj.Rds")
+DefaultAssay(EGFP) <- "RNA"
+selected_res <- paste0("RNA_snn_res.", resolution)
+Idents(EGFP) <- selected_res
+
+table_df <- table(EGFP@meta.data[ , selected_res], EGFP@meta.data$LibraryID) %>%
+    as.data.frame() %>% spread(key = Var2, value = Freq)
+```
+
+```{r markers}
+if (file.exists("Markers/2020-02-05_EGFP_markers.Rds")) {
+    markers_list <- readRDS("Markers/2020-02-05_EGFP_markers.Rds")
+} else {
+  dir.create("Markers")
+  table_df <- table(EGFP@meta.data[ , selected_res], EGFP@meta.data$LibraryID) %>% as.data.frame() %>% spread(key = Var2, value = Freq)
+  colnames(table_df)[1] <- "cluster"
+  # str(table_df)
+  markers_list <- list()
+  for(cluster_id in table_df$cluster){
+      markers <- FindMarkers(EGFP, ident.1 = cluster_id)
+      # markers$gene <- row.names(markers)
+      write.csv(markers, file = paste0("Markers/2020-02-05_EGFP_markers_cluster", cluster_id, ".csv"))
+      markers_list[[paste0("cluster", cluster_id)]] <- markers
+  }
+  saveRDS(markers_list,
+          file = "Markers/2020-02-05_EGFP_markers.Rds")
+}
+```
+
+# Notes
+
+2020-02-05:
+
+  * only EGFP.
+
+Sat Nov 30, 2019:
+
+  * prepare markers.
+
+Tue Oct 29, 2019:
+
+  * use SoupX fixed 0.45 to remove ambient RNA.
+
+Mon Oct 7, 2019:
+
+  * Add more sequence depth.
+
+Mon, Sep 30, 2019:
+
+  * remove genes: EGFP, Tsc1, gig. Then perform integrate analysis of EGFP, TSC1.
+
+Fri, Sep 20, 2019:
+
+  * First version for integrate analysis of EGFP, TSC1.
+
+# Session Info
+
+```{r sessioninfo, message=TRUE}
+sessionInfo()
+```
+

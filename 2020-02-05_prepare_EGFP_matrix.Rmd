@@ -1,0 +1,400 @@
+---
+title: "prepare EGFP matrix"
+author: "Yifang Liu"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::html_clean:
+    code_folding: hide
+    fig_width: 10
+    fig_height: 10
+    highlight: kate
+    thumbnails: false
+    lightbox: true
+    gallery: true
+---
+
+```{r knitr_init, echo=FALSE, cache=FALSE}
+library(knitr)
+library(rmdformats)
+
+options(max.print = 200)
+opts_chunk$set(echo = TRUE,
+               cache = FALSE,
+               prompt = FALSE,
+               tidy = TRUE,
+               comment = NA,
+               message = FALSE,
+               warning = FALSE,
+               dev = c('png', 'pdf'),
+               fig.width = 10,
+               fig.height = 10,
+               fig.align = "center",
+               fig.path = 'PDF_2020-02-05_prepare_EGFP_matrix/',
+               dpi = 72)
+opts_knit$set(width = 75)
+```
+
+```{r setup}
+set.seed(123)
+
+# Suppress loading messages
+suppressPackageStartupMessages({
+  library(Matrix)
+  library(dplyr)
+  library(tidyverse)
+  library(Seurat)
+  library(cowplot)
+  library(Rcpp)
+  library(harmony)
+})
+
+theme_set(theme_cowplot())
+```
+
+```{r}
+# G0_matrix
+G0_matrix <- readRDS("/Users/yifang/Projects/With/Arpan/Harmony/TSC1_EGFP_SoupX_fixed_0.45_191029/TSC1_EGFP_SoupX_fixed_0.45_191028/G0.Rds") # matrix after SoupX
+colnames(G0_matrix) <- paste0("G0_", colnames(G0_matrix))
+
+# G1_matrix
+G1_matrix <- readRDS("/Users/yifang/Projects/With/Arpan/Harmony/TSC1_EGFP_SoupX_fixed_0.45_191029/TSC1_EGFP_SoupX_fixed_0.45_191028/G1.Rds")
+colnames(G1_matrix) <- paste0("G1_", colnames(G1_matrix))
+
+# # T0_matrix
+# T0_matrix <- readRDS("/Users/yifang/Projects/With/Arpan/Harmony/TSC1_EGFP_SoupX_fixed_0.45_191029/TSC1_EGFP_SoupX_fixed_0.45_191028/T0.Rds")
+# colnames(T0_matrix) <- paste0("T0_", colnames(T0_matrix))
+#
+# # T1_matrix
+# T1_matrix <- readRDS("/Users/yifang/Projects/With/Arpan/Harmony/TSC1_EGFP_SoupX_fixed_0.45_191029/TSC1_EGFP_SoupX_fixed_0.45_191028/T1.Rds")
+# colnames(T1_matrix) <- paste0("T1_", colnames(T1_matrix))
+
+dir.create("Data")
+```
+
+```{r}
+# G0
+G0_metadata <- colnames(G0_matrix)
+G0_metadata <- as.data.frame(G0_metadata)
+colnames(G0_metadata) <- "barcode"
+G0_metadata$nUMI <- colSums(G0_matrix)
+G0_metadata$nRNA <- colSums(G0_matrix > 0)
+mito <- grep(pattern = "^mt:", x = rownames(G0_matrix), value = TRUE)
+G0_metadata$percent_mito <- colSums(G0_matrix[mito, ]) / colSums(G0_matrix)
+
+G0_nRNA_lower_bound <- 10^(mean(log10(G0_metadata$nRNA)) -
+            2*sd(log10(G0_metadata$nRNA)))
+G0_nRNA_upper_bound <- 10^(mean(log10(G0_metadata$nRNA)) +
+            2*sd(log10(G0_metadata$nRNA)))
+
+G0_nUMI_lower_bound <- 10^(mean(log10(G0_metadata$nUMI)) -
+            2*sd(log10(G0_metadata$nUMI)))
+G0_nUMI_upper_bound <- 10^(mean(log10(G0_metadata$nUMI)) +
+            2*sd(log10(G0_metadata$nUMI)))
+
+G0_metadata_no0 <- subset(G0_metadata, percent_mito > 0)
+G0_percent_mito_lower_bound <- 10^(mean(log10(G0_metadata_no0$percent_mito)) -
+            2*sd(log10(G0_metadata_no0$percent_mito)))
+G0_percent_mito_upper_bound <- 10^(mean(log10(G0_metadata_no0$percent_mito)) +
+            2*sd(log10(G0_metadata_no0$percent_mito)))
+
+# G1
+G1_metadata <- colnames(G1_matrix)
+G1_metadata <- as.data.frame(G1_metadata)
+colnames(G1_metadata) <- "barcode"
+G1_metadata$nUMI <- colSums(G1_matrix)
+G1_metadata$nRNA <- colSums(G1_matrix > 0)
+mito <- grep(pattern = "^mt:", x = rownames(G1_matrix), value = TRUE)
+G1_metadata$percent_mito <- colSums(G1_matrix[mito, ]) / colSums(G1_matrix)
+
+G1_nRNA_lower_bound <- 10^(mean(log10(G1_metadata$nRNA)) -
+            2*sd(log10(G1_metadata$nRNA)))
+G1_nRNA_upper_bound <- 10^(mean(log10(G1_metadata$nRNA)) +
+            2*sd(log10(G1_metadata$nRNA)))
+
+G1_nUMI_lower_bound <- 10^(mean(log10(G1_metadata$nUMI)) -
+            2*sd(log10(G1_metadata$nUMI)))
+G1_nUMI_upper_bound <- 10^(mean(log10(G1_metadata$nUMI)) +
+            2*sd(log10(G1_metadata$nUMI)))
+
+G1_metadata_no0 <- subset(G1_metadata, percent_mito > 0)
+G1_percent_mito_lower_bound <- 10^(mean(log10(G1_metadata_no0$percent_mito)) -
+            2*sd(log10(G1_metadata_no0$percent_mito)))
+G1_percent_mito_upper_bound <- 10^(mean(log10(G1_metadata_no0$percent_mito)) +
+            2*sd(log10(G1_metadata_no0$percent_mito)))
+
+# # T0
+# T0_metadata <- colnames(T0_matrix)
+# T0_metadata <- as.data.frame(T0_metadata)
+# colnames(T0_metadata) <- "barcode"
+# T0_metadata$nUMI <- colSums(T0_matrix)
+# T0_metadata$nRNA <- colSums(T0_matrix > 0)
+# mito <- grep(pattern = "^mt:", x = rownames(T0_matrix), value = TRUE)
+# T0_metadata$percent_mito <- colSums(T0_matrix[mito, ]) / colSums(T0_matrix)
+#
+# T0_nRNA_lower_bound <- 10^(mean(log10(T0_metadata$nRNA)) -
+#             2*sd(log10(T0_metadata$nRNA)))
+# T0_nRNA_upper_bound <- 10^(mean(log10(T0_metadata$nRNA)) +
+#             2*sd(log10(T0_metadata$nRNA)))
+#
+# T0_nUMI_lower_bound <- 10^(mean(log10(T0_metadata$nUMI)) -
+#             2*sd(log10(T0_metadata$nUMI)))
+# T0_nUMI_upper_bound <- 10^(mean(log10(T0_metadata$nUMI)) +
+#             2*sd(log10(T0_metadata$nUMI)))
+#
+# T0_metadata_no0 <- subset(T0_metadata, percent_mito > 0)
+# T0_percent_mito_lower_bound <- 10^(mean(log10(T0_metadata_no0$percent_mito)) -
+#             2*sd(log10(T0_metadata_no0$percent_mito)))
+# T0_percent_mito_upper_bound <- 10^(mean(log10(T0_metadata_no0$percent_mito)) +
+#             2*sd(log10(T0_metadata_no0$percent_mito)))
+#
+# # T1
+# T1_metadata <- colnames(T1_matrix)
+# T1_metadata <- as.data.frame(T1_metadata)
+# colnames(T1_metadata) <- "barcode"
+# T1_metadata$nUMI <- colSums(T1_matrix)
+# T1_metadata$nRNA <- colSums(T1_matrix > 0)
+# mito <- grep(pattern = "^mt:", x = rownames(T1_matrix), value = TRUE)
+# T1_metadata$percent_mito <- colSums(T1_matrix[mito, ]) / colSums(T1_matrix)
+#
+# T1_nRNA_lower_bound <- 10^(mean(log10(T1_metadata$nRNA)) -
+#             2*sd(log10(T1_metadata$nRNA)))
+# T1_nRNA_upper_bound <- 10^(mean(log10(T1_metadata$nRNA)) +
+#             2*sd(log10(T1_metadata$nRNA)))
+#
+# T1_nUMI_lower_bound <- 10^(mean(log10(T1_metadata$nUMI)) -
+#             2*sd(log10(T1_metadata$nUMI)))
+# T1_nUMI_upper_bound <- 10^(mean(log10(T1_metadata$nUMI)) +
+#             2*sd(log10(T1_metadata$nUMI)))
+#
+# T1_metadata_no0 <- subset(T1_metadata, percent_mito > 0)
+# T1_percent_mito_lower_bound <- 10^(mean(log10(T1_metadata_no0$percent_mito)) -
+#             2*sd(log10(T1_metadata_no0$percent_mito)))
+# T1_percent_mito_upper_bound <- 10^(mean(log10(T1_metadata_no0$percent_mito)) +
+#             2*sd(log10(T1_metadata_no0$percent_mito)))
+```
+
+# G0 QC {.tabset}
+
+## nUMI
+
+```{r G0_QC_nUMI}
+ggplot(data = G0_metadata, aes(x = nUMI)) + geom_histogram(binwidth = 10) + xlim(0, 8000) +
+  geom_vline(xintercept = G0_nUMI_lower_bound) +
+  geom_vline(xintercept = G0_nUMI_upper_bound)
+```
+
+## nRNA
+
+```{r G0_QC_nRNA}
+ggplot(data = G0_metadata, aes(x = nRNA)) + geom_histogram(binwidth = 10) + xlim(0, 1400) +
+  geom_vline(xintercept = G0_nRNA_lower_bound) +
+  geom_vline(xintercept = G0_nRNA_upper_bound)
+```
+
+## percent_mito
+
+```{r G0_QC_percent_mito}
+ggplot(data = G0_metadata, aes(x = percent_mito)) + geom_histogram(binwidth = 0.01) + xlim(0, 1) +
+  geom_vline(xintercept = G0_percent_mito_upper_bound)
+```
+
+# G1 QC {.tabset}
+
+## nUMI
+
+```{r G1_QC_nUMI}
+ggplot(data = G1_metadata, aes(x = nUMI)) + geom_histogram(binwidth = 10) + xlim(0, 8000) +
+  geom_vline(xintercept = G1_nUMI_lower_bound) +
+  geom_vline(xintercept = G1_nUMI_upper_bound)
+```
+
+## nRNA
+
+```{r G1_QC_nRNA}
+ggplot(data = G1_metadata, aes(x = nRNA)) + geom_histogram(binwidth = 10) + xlim(0, 1400) +
+  geom_vline(xintercept = G1_nRNA_lower_bound) +
+  geom_vline(xintercept = G1_nRNA_upper_bound)
+```
+
+## percent_mito
+
+```{r G1_QC_percent_mito}
+ggplot(data = G1_metadata, aes(x = percent_mito)) + geom_histogram(binwidth = 0.01) + xlim(0, 1) +
+  geom_vline(xintercept = G1_percent_mito_upper_bound)
+```
+
+<!-- # T0 QC {.tabset} -->
+
+<!-- ## nUMI -->
+
+<!-- ```{r T0_QC_nUMI} -->
+<!-- ggplot(data = T0_metadata, aes(x = nUMI)) + geom_histogram(binwidth = 10) + xlim(0, 8000) + -->
+<!--   geom_vline(xintercept = T0_nUMI_lower_bound) + -->
+<!--   geom_vline(xintercept = T0_nUMI_upper_bound) -->
+<!-- ``` -->
+
+<!-- ## nRNA -->
+
+<!-- ```{r T0_QC_nRNA} -->
+<!-- ggplot(data = T0_metadata, aes(x = nRNA)) + geom_histogram(binwidth = 10) + xlim(0, 1400) + -->
+<!--   geom_vline(xintercept = T0_nRNA_lower_bound) + -->
+<!--   geom_vline(xintercept = T0_nRNA_upper_bound) -->
+<!-- ``` -->
+
+<!-- ## percent_mito -->
+
+<!-- ```{r T0_QC_percent_mito} -->
+<!-- ggplot(data = T0_metadata, aes(x = percent_mito)) + geom_histogram(binwidth = 0.01) + xlim(0, 1) + -->
+<!--   geom_vline(xintercept = T0_percent_mito_upper_bound) -->
+<!-- ``` -->
+
+<!-- # T1 QC {.tabset} -->
+
+<!-- ## nUMI -->
+
+<!-- ```{r T1_QC_nUMI} -->
+<!-- ggplot(data = T1_metadata, aes(x = nUMI)) + geom_histogram(binwidth = 10) + xlim(0, 8000) + -->
+<!--   geom_vline(xintercept = T1_nUMI_lower_bound) + -->
+<!--   geom_vline(xintercept = T1_nUMI_upper_bound) -->
+<!-- ``` -->
+
+<!-- ## nRNA -->
+
+<!-- ```{r T1_QC_nRNA} -->
+<!-- ggplot(data = T1_metadata, aes(x = nRNA)) + geom_histogram(binwidth = 10) + xlim(0, 1400) + -->
+<!--   geom_vline(xintercept = T1_nRNA_lower_bound) + -->
+<!--   geom_vline(xintercept = T1_nRNA_upper_bound) -->
+<!-- ``` -->
+
+<!-- ## percent_mito -->
+
+<!-- ```{r T1_QC_percent_mito} -->
+<!-- ggplot(data = T1_metadata, aes(x = percent_mito)) + geom_histogram(binwidth = 0.01) + xlim(0, 1) + -->
+<!--   geom_vline(xintercept = T1_percent_mito_upper_bound) -->
+<!-- ``` -->
+
+# Filter
+
+```{r filter}
+G0_metadata_after_filter <- subset(G0_metadata, (nRNA > G0_nRNA_lower_bound  & nRNA < G0_nRNA_upper_bound) & (nUMI > G0_nUMI_lower_bound & nUMI < G0_nUMI_upper_bound) & (percent_mito < G0_percent_mito_upper_bound))
+
+G1_metadata_after_filter <- subset(G1_metadata, (nRNA > G1_nRNA_lower_bound  & nRNA < G1_nRNA_upper_bound) & (nUMI > G1_nUMI_lower_bound & nUMI < G1_nUMI_upper_bound) & (percent_mito < G1_percent_mito_upper_bound))
+
+# T0_metadata_after_filter <- subset(T0_metadata, (nRNA > T0_nRNA_lower_bound  & nRNA < T0_nRNA_upper_bound) & (nUMI > T0_nUMI_lower_bound & nUMI < T0_nUMI_upper_bound) & (percent_mito < T0_percent_mito_upper_bound))
+#
+# T1_metadata_after_filter <- subset(T1_metadata, (nRNA > T1_nRNA_lower_bound  & nRNA < T1_nRNA_upper_bound) & (nUMI > T1_nUMI_lower_bound & nUMI < T1_nUMI_upper_bound) & (percent_mito < T1_percent_mito_upper_bound))
+
+G0_matrix_after_filter <- G0_matrix[ , G0_metadata_after_filter$barcode]
+G1_matrix_after_filter <- G1_matrix[ , G1_metadata_after_filter$barcode]
+# T0_matrix_after_filter <- T0_matrix[ , T0_metadata_after_filter$barcode]
+# T1_matrix_after_filter <- T1_matrix[ , T1_metadata_after_filter$barcode]
+
+# all.equal(row.names(T0_matrix_after_filter), row.names(T1_matrix_after_filter))
+# all.equal(row.names(T0_matrix_after_filter), row.names(G0_matrix_after_filter))
+# all.equal(row.names(T0_matrix_after_filter), row.names(G1_matrix_after_filter))
+
+# G0_G1_T0_T1_matrix_after_filter <- cbind(
+#   G0_matrix_after_filter,
+#   G1_matrix_after_filter,
+#   T0_matrix_after_filter,
+#   T1_matrix_after_filter)
+
+G0_G1_matrix_after_filter <- cbind(
+  G0_matrix_after_filter,
+  G1_matrix_after_filter)
+
+remove_genes <- c("EGFP", "Tsc1", "gig")
+EGFP_matrix <- G0_G1_matrix_after_filter[!(rownames(G0_G1_matrix_after_filter) %in% remove_genes), ]
+
+saveRDS(EGFP_matrix, file = "Data/2020-02-05_EGFP_matrix.Rds")
+```
+
+# QC table before filter
+
+```{r}
+G0_Num_Cells <- nrow(G0_metadata)
+G1_Num_Cells <- nrow(G1_metadata)
+# T0_Num_Cells <- nrow(T0_metadata)
+# T1_Num_Cells <- nrow(T1_metadata)
+
+G0_Median_Genes <- median(G0_metadata$nRNA)
+G1_Median_Genes <- median(G1_metadata$nRNA)
+# T0_Median_Genes <- median(T0_metadata$nRNA)
+# T1_Median_Genes <- median(T1_metadata$nRNA)
+
+G0_Median_UMIs <- median(G0_metadata$nUMI)
+G1_Median_UMIs <- median(G1_metadata$nUMI)
+# T0_Median_UMIs <- median(T0_metadata$nUMI)
+# T1_Median_UMIs <- median(T1_metadata$nUMI)
+
+# QC_table_before_filter <- c("G0", "G1", "T0", "T1") %>% as.data.frame()
+QC_table_before_filter <- c("G0", "G1") %>% as.data.frame()
+colnames(QC_table_before_filter) <- "Sample"
+
+# QC_table_before_filter$Num_Cells <- c(G0_Num_Cells, G1_Num_Cells, T0_Num_Cells, T1_Num_Cells)
+# QC_table_before_filter$Median_Genes <- c(G0_Median_Genes, G1_Median_Genes, T0_Median_Genes, T1_Median_Genes)
+# QC_table_before_filter$Median_UMIs <- c(G0_Median_UMIs, G1_Median_UMIs, T0_Median_UMIs, T1_Median_UMIs)
+QC_table_before_filter$Num_Cells <- c(G0_Num_Cells, G1_Num_Cells)
+QC_table_before_filter$Median_Genes <- c(G0_Median_Genes, G1_Median_Genes)
+QC_table_before_filter$Median_UMIs <- c(G0_Median_UMIs, G1_Median_UMIs)
+
+write.table(QC_table_before_filter,
+            file = "Data/QC_table_before_filter.txt",
+            row.names = FALSE,
+            sep = "\t")
+
+DT::datatable(QC_table_before_filter)
+```
+
+# QC table after filter
+
+```{r}
+G0_Num_Cells <- nrow(G0_metadata_after_filter)
+G1_Num_Cells <- nrow(G1_metadata_after_filter)
+# T0_Num_Cells <- nrow(T0_metadata_after_filter)
+# T1_Num_Cells <- nrow(T1_metadata_after_filter)
+
+G0_Median_Genes <- median(G0_metadata_after_filter$nRNA)
+G1_Median_Genes <- median(G1_metadata_after_filter$nRNA)
+# T0_Median_Genes <- median(T0_metadata_after_filter$nRNA)
+# T1_Median_Genes <- median(T1_metadata_after_filter$nRNA)
+
+G0_Median_UMIs <- median(G0_metadata_after_filter$nUMI)
+G1_Median_UMIs <- median(G1_metadata_after_filter$nUMI)
+# T0_Median_UMIs <- median(T0_metadata_after_filter$nUMI)
+# T1_Median_UMIs <- median(T1_metadata_after_filter$nUMI)
+
+# QC_table_after_filter <- c("G0", "G1", "T0", "T1") %>% as.data.frame()
+QC_table_after_filter <- c("G0", "G1") %>% as.data.frame()
+colnames(QC_table_after_filter) <- "Sample"
+
+# QC_table_after_filter$Num_Cells <- c(G0_Num_Cells, G1_Num_Cells, T0_Num_Cells, T1_Num_Cells)
+# QC_table_after_filter$Median_Genes <- c(G0_Median_Genes, G1_Median_Genes, T0_Median_Genes, T1_Median_Genes)
+# QC_table_after_filter$Median_UMIs <- c(G0_Median_UMIs, G1_Median_UMIs, T0_Median_UMIs, T1_Median_UMIs)
+QC_table_after_filter$Num_Cells <- c(G0_Num_Cells, G1_Num_Cells)
+QC_table_after_filter$Median_Genes <- c(G0_Median_Genes, G1_Median_Genes)
+QC_table_after_filter$Median_UMIs <- c(G0_Median_UMIs, G1_Median_UMIs)
+
+write.table(QC_table_after_filter,
+            file = "Data/QC_table_after_filter.txt",
+            row.names = FALSE,
+            sep = "\t")
+
+DT::datatable(QC_table_after_filter)
+```
+
+# Notes
+
+2020-02-05:
+
+  * generate Data/2020-02-05_EGFP_matrix.Rds.
+
+Sat Nov 30, 2019:
+
+  * G0 G1 T0 T1 QC.
+
+# Session Info
+
+```{r sessioninfo, message=TRUE}
+sessionInfo()
+```

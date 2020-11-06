@@ -1,0 +1,313 @@
+---
+title: "3 Top genes per cluster Dotplot miniViolin Heatmap"
+author: "Yifang Liu"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::html_clean:
+    code_folding: hide
+    fig_width: 10
+    fig_height: 10
+    highlight: kate
+    thumbnails: false
+    lightbox: true
+    gallery: true
+---
+
+```{r knitr_init, echo=FALSE, cache=FALSE}
+library(knitr)
+library(rmdformats)
+
+options(max.print = 200)
+opts_chunk$set(echo = TRUE,
+               cache = FALSE,
+               prompt = FALSE,
+               tidy = TRUE,
+               comment = NA,
+               message = FALSE,
+               warning = FALSE,
+               dev = c('png', 'pdf'),
+               fig.width = 10,
+               fig.height = 10,
+               fig.align = "center",
+               fig.path = '3_PDF_2020-02-05_Top_genes_per_cluster_Dotplot_miniViolin_Heatmap/',
+               dpi = 72)
+opts_knit$set(width = 75)
+```
+
+```{r setup}
+set.seed(123)
+
+npc <- 20
+# theta1 <- 2
+# theta2 <- 5
+# theta <- c(theta1, theta2)
+resolution <- 0.1
+selected_res <- paste0("RNA_snn_res.", resolution)
+pt_size <- 1
+# alpha <- 0.8
+
+# Suppress loading messages
+suppressPackageStartupMessages({
+  library(Matrix)
+  library(dplyr)
+  library(tidyverse)
+  library(Seurat)
+  library(cowplot)
+  library(Rcpp)
+  library(harmony)
+  library(SoupX)
+})
+```
+
+```{r load_data}
+EGFP <- readRDS("Data/2020-02-05_EGFP_seurat_obj.Rds")
+Idents(EGFP) <- selected_res
+```
+
+# Top genes unbiased
+
+```{r markers}
+if (file.exists("Markers/2020-02-05_EGFP_markers.Rds")) {
+    markers_list <- readRDS("Markers/2020-02-05_EGFP_markers.Rds")
+} else {
+  dir.create("Markers")
+  table_df <- table(EGFP@meta.data[ , selected_res], EGFP@meta.data$LibraryID) %>% as.data.frame() %>% spread(key = Var2, value = Freq)
+  colnames(table_df)[1] <- "cluster"
+  # str(table_df)
+  markers_list <- list()
+  for(cluster_id in table_df$cluster){
+      markers <- FindMarkers(EGFP, ident.1 = cluster_id)
+      # markers$gene <- row.names(markers)
+      write.csv(markers, file = paste0("Markers/2020-02-05_EGFP_markers_cluster", cluster_id, ".csv"))
+      markers_list[[paste0("cluster", cluster_id)]] <- markers
+  }
+  saveRDS(markers_list,
+          file = "Markers/2020-02-05_EGFP_markers.Rds")
+}
+```
+
+# Dotplot Top5 per cluster
+
+```{r Dotplot_top5}
+n <- 5
+gene_list <- character(length = 0)
+for(cluster_n in names(markers_list)){
+  df <- markers_list[[`cluster_n`]]
+  df <- subset(df, df$avg_logFC > 0)
+  df <- df[order(-df$avg_logFC), ]
+  df <- df[!(row.names(df) %in% c("EGFP")), ]
+  count <- 0
+  gene_names <- row.names(df)
+  for (i in 1:length(gene_names)) {
+    if (gene_names[i] %in% gene_list) {
+      # print(cluster_n)
+      # print(i)
+      # print(gene_names[i])
+    } else {
+      gene_list <- c(gene_names[i], gene_list)
+      count <- count + 1
+    }
+    if (count == n) {
+      break
+    }
+  }
+}
+DotPlot(EGFP, features = gene_list, dot.scale = 5) + RotatedAxis() + ylab("Cluster") + theme(axis.text.x = element_text(size = 8))
+```
+
+# miniViolin Top3 per cluster
+
+```{r miniViolin_top3}
+n <- 3
+gene_list <- character(length = 0)
+for(cluster_n in names(markers_list)){
+  df <- markers_list[[`cluster_n`]]
+  df <- subset(df, df$avg_logFC > 0)
+  df <- df[order(-df$avg_logFC), ]
+  df <- df[!(row.names(df) %in% c("EGFP")), ]
+  count <- 0
+  gene_names <- row.names(df)
+  for (i in 1:length(gene_names)) {
+    if (gene_names[i] %in% gene_list) {
+      # print(cluster_n)
+      # print(i)
+      # print(gene_names[i])
+    } else {
+      gene_list <- c(gene_names[i], gene_list)
+      count <- count + 1
+    }
+    if (count == n) {
+      break
+    }
+  }
+}
+
+# gene_list
+
+for (gene in gene_list) {
+  plot <- VlnPlot(EGFP, features = gene, pt.size = 0, combine = FALSE)
+  p <- plot[[1]] +
+    theme(legend.position = 'none') +
+    theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank()) +
+    ylab(gene) +
+    theme(plot.title = element_blank()) +
+    theme(axis.text.y = element_text(size = 2)) +
+    theme(text = element_text(size = 8))
+  assign(gene, p)
+}
+
+x_label <- plot[[1]] +
+  theme(legend.position = 'none') +
+  ylab("") +
+  theme(plot.title = element_blank()) +
+  theme(axis.text.y = element_text(size = 2)) +
+  theme(text = element_text(size = 8)) +
+  theme(axis.text.x = element_text(size = 20))
+
+plot_grid(EbpII, Ebp, Sfp60F, Pif2, whip, soti, 
+CG33970, EbpIII, Obp56d, CG13618, CG12268, Elo68alpha,
+CG4928, Mur18B, CG14292, lcs, CG34212, CG16826, 
+yip7, CG5107, alphaTry, Cpr49Ab, CG14661, Cpr65Au, 
+mtgo, CG2765, FASN3, CG13868, LpR2, CG10960, x_label, ncol = 1)
+```
+
+# Heatmap Top10 per cluster
+
+```{r Heatmap_top10}
+n <- 10
+gene_list <- character(length = 0)
+for(cluster_n in names(markers_list)){
+  df <- markers_list[[`cluster_n`]]
+  df <- subset(df, df$avg_logFC > 0)
+  df <- df[order(-df$avg_logFC), ]
+  df <- df[!(row.names(df) %in% c("EGFP")), ]
+  count <- 0
+  gene_names <- row.names(df)
+  for (i in 1:length(gene_names)) {
+    if (gene_names[i] %in% gene_list) {
+      # print(cluster_n)
+      # print(i)
+      # print(gene_names[i])
+    } else {
+      gene_list <- c(gene_names[i], gene_list)
+      count <- count + 1
+    }
+    if (count == n) {
+      break
+    }
+  }
+}
+gene_list <- rev(gene_list)
+DoHeatmap(EGFP, features = gene_list, raster = FALSE)
+```
+
+# Hand picked genes from Arpan
+
+```{r gene_list}
+gene_list <- c(
+  "sls", "Mlc2", "Mlp60A", "Mhc", "Mf", "Mp20",
+  "FASN3", "FASN2", "LpR1", "salm", "ImpL2",
+  "Pli", "LpR2", "path", "apolpp", "FASN1", "Hnf4"
+)
+```
+
+# Dotplot
+
+```{r Dotplot_picked}
+DotPlot(EGFP, features = gene_list, dot.scale = 5) + RotatedAxis() + ylab("Cluster") + theme(axis.text.x = element_text(size = 8))
+```
+
+# miniViolin
+
+```{r miniViolin_picked}
+for (gene in gene_list) {
+  plot <- VlnPlot(EGFP, features = gene, pt.size = 0, combine = FALSE)
+  p <- plot[[1]] +
+    theme(legend.position = 'none') +
+    theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank()) +
+    ylab(gene) +
+    theme(plot.title = element_blank()) +
+    theme(axis.text.y = element_text(size = 3)) +
+    theme(text = element_text(size = 8))
+  assign(gene, p)
+}
+
+plot <- VlnPlot(EGFP, features = "Lsd-1", pt.size = 0, combine = FALSE)
+Lsd1 <- plot[[1]] +
+    theme(legend.position = 'none') +
+    theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank()) +
+    ylab("Lsd-1") +
+    theme(plot.title = element_blank()) +
+    theme(axis.text.y = element_text(size = 3)) +
+    theme(text = element_text(size = 8))
+  
+x_label <- plot[[1]] +
+  theme(legend.position = 'none') +
+  ylab("") +
+  theme(plot.title = element_blank()) +
+  theme(axis.text.y = element_text(size = 3)) +
+  theme(text = element_text(size = 8)) +
+  theme(axis.text.x = element_text(size = 20))
+
+plot_grid(sls, Mlc2, Mlp60A, Mhc, Mf, Mp20, 
+          FASN3, FASN2, LpR1, salm, ImpL2, 
+          Pli, LpR2, path, apolpp, FASN1, Hnf4, 
+          x_label, ncol = 1)
+```
+
+# Heatmap
+
+```{r Heatmap_picked}
+DoHeatmap(EGFP, features = rev(gene_list), raster = FALSE)
+```
+
+# Notes
+
+2020-02-05:
+
+  * Top genes per cluster Dotplot miniViolin Heatmap only for EGFP.
+
+Tue Dec 10, 2019:
+
+  * Violin plot for EGFP and TSC separately for the last set of genes; Combined violin plot for the same; Combined dot plot for top 5 genes by fold change in all clusters (EGFP: Green and TSC: Red).
+
+Wed Dec 5, 2019:
+
+  * Removed three genes: Lsd-1, mdy, Fas1.
+
+Wed Dec 4, 2019:
+
+  * Use these selected genes for cluster 0, 1 and 2. Cluster 0: Pli, LpR2, path, apolpp, FASN1, Hnf4, Lsd-1, mdy; Cluster 1: sls, Mlc2, Mlp60A, Mhc, Mf, Mp20; Cluster 2: FASN3, FASN2, LpR1, salm, ImpL2, Fas1.
+
+Sun Dec 1, 2019:
+
+  * Dot plot and mini violin plots: 3 top expressed marker genes for dot plot; 2 top for mini-violin plot.
+
+Tue Oct 29, 2019:
+
+  * Use SoupX fixed 0.45 to remove ambient RNA.
+
+Mon Oct 7, 2019:
+
+  * Add more sequence depth.
+
+Mon, Sep 30, 2019:
+
+  * Remove genes: EGFP, Tsc1, gig. Then perform integrate analysis of EGFP, TSC1.
+
+Fri, Sep 20, 2019:
+
+  * First version for integrate analysis of EGFP, TSC1.
+
+# Session Info
+
+```{r sessioninfo, message=TRUE}
+sessionInfo()
+```
+

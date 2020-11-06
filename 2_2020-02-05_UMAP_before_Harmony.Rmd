@@ -1,0 +1,200 @@
+---
+title: "2 UMAP before Harmony"
+author: "Yifang Liu"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::html_clean:
+    code_folding: hide
+    fig_width: 10
+    fig_height: 10
+    highlight: kate
+    thumbnails: false
+    lightbox: true
+    gallery: true
+---
+
+```{r knitr_init, echo=FALSE, cache=FALSE}
+library(knitr)
+library(rmdformats)
+
+options(max.print = 200)
+opts_chunk$set(echo = TRUE,
+               cache = FALSE,
+               prompt = FALSE,
+               tidy = TRUE,
+               comment = NA,
+               message = FALSE,
+               warning = FALSE,
+               dev = c('png', 'pdf'),
+               fig.width = 10,
+               fig.height = 10,
+               fig.align = "center",
+               fig.path = '2_PDF_2020-02-05_UMAP_before_Harmony/',
+               dpi = 72)
+opts_knit$set(width = 75)
+```
+
+```{r setup}
+set.seed(123)
+
+npc <- 20
+# theta1 <- 2
+# theta2 <- 5
+# theta <- c(theta1, theta2)
+resolution <- 0.1
+pt_size <- 1
+# alpha <- 0.8
+
+# Suppress loading messages
+suppressPackageStartupMessages({
+  library(Matrix)
+  library(dplyr)
+  library(tidyverse)
+  library(Seurat)
+  library(cowplot)
+  library(Rcpp)
+  library(harmony)
+  library(SoupX)
+})
+```
+
+```{r UMAP}
+EGFP <- readRDS("Data/2020-02-05_EGFP_seurat_obj_before_Harmony.Rds")
+object <- EGFP
+dims <- c(1, 2)
+reduction <- "umap"
+cells <- colnames(x = object)
+data <- Embeddings(object = object[[reduction]])[cells, dims]
+data <- as.data.frame(x = data)
+dims <- paste0(Key(object = object[[reduction]]), dims)
+object[['ident']] <- Idents(object = object)
+group_by <- "ident"
+data[, group_by] <- object[[group_by]][cells, , drop = FALSE]
+data[, "LibraryID"] <- object[["LibraryID"]][cells, , drop = FALSE]
+data_G0 <- subset(data, LibraryID == "G0")
+data_G1 <- subset(data, LibraryID == "G1")
+# group_color <- c("#0000EE","#9d009d","#ff7f0e","#ff0078","#05e259","#35bbf8","#c4af00","#686864","#9467bd","#006c00","#1b8c8b","#8d532e","#9f5084","#f7b6d2","#7f7f7f","#c7c7c7","#bcbd22")
+```
+
+# UMAP plots of combined and separated G0 and G1 {.tabset}
+
+## UMAP combined with legend
+
+```{r UMAP_combined_with_legend}
+# range(data$UMAP_1)
+# range(data$UMAP_2)
+ggplot(data = data) +
+    geom_point(
+      mapping = aes_string(
+        x = dims[1],
+        y = dims[2],
+        color = "ident"
+      ),
+      shape = 16,
+      size = pt_size
+    ) +
+    # scale_color_manual(values = alpha(group_color, alpha)) +
+  coord_cartesian(xlim = c(-10, 5), ylim = c(-14, 8)) +
+  theme_cowplot()
+```
+
+## UMAP combined
+
+```{r UMAP_combined}
+ggplot(data = data) +
+    geom_point(
+      mapping = aes_string(
+        x = dims[1],
+        y = dims[2],
+        color = "ident"
+      ),
+      shape = 16,
+      size = pt_size
+    ) +
+    # scale_color_manual(values = alpha(group_color, alpha)) +
+  coord_cartesian(xlim = c(-10, 5), ylim = c(-14, 8)) +
+  theme_cowplot() +
+  theme(legend.position = "none")
+```
+
+## G0
+
+```{r UMAP_G0}
+data <- data_G0
+ggplot(data = data) +
+    geom_point(
+      mapping = aes_string(
+        x = dims[1],
+        y = dims[2],
+        color = "ident"
+      ),
+      shape = 16,
+      size = pt_size
+    ) +
+    # scale_color_manual(values = alpha(group_color, alpha)) +
+  coord_cartesian(xlim = c(-10, 5), ylim = c(-14, 8)) +
+  theme_cowplot() +
+  theme(legend.position = "none")
+```
+
+## G1
+
+```{r UMAP_G1}
+# Do some extra work because the number of cluster in G0 is different from
+# the number of cluster in G1
+gg_color_hue <- function(n) {
+  hues = seq(15, 375, length = n + 1)
+  hcl(h = hues, l = 65, c = 100)[1:n]
+}
+n <- 10
+cols <- gg_color_hue(n)
+cols <- cols[c(1, 2, 3, 4, 5, 8, 9)]
+data <- data_G1
+ggplot(data = data) +
+    geom_point(
+      mapping = aes_string(
+        x = dims[1],
+        y = dims[2],
+        color = "ident"
+      ),
+      shape = 16,
+      size = pt_size
+    ) +
+  scale_color_manual(values = cols) +
+  coord_cartesian(xlim = c(-10, 5), ylim = c(-14, 8)) +
+  theme_cowplot() +
+  theme(legend.position = "none")
+```
+
+# Notes
+
+2020-02-05:
+
+  * UMAP before Harmony.
+
+Sun Dec 1, 2019:
+
+  * UMAP plots (after SoupX) of combined and separated EGFP and TSC.
+
+Tue Oct 29, 2019:
+
+  * use SoupX fixed 0.45 to remove ambient RNA.
+
+Mon Oct 7, 2019:
+
+  * Add more sequence depth.
+
+Mon, Sep 30, 2019:
+
+  * remove genes: EGFP, Tsc1, gig. Then perform integrate analysis of EGFP, TSC1.
+
+Fri, Sep 20, 2019:
+
+  * First version for integrate analysis of EGFP, TSC1.
+
+# Session Info
+
+```{r sessioninfo, message=TRUE}
+sessionInfo()
+```
+

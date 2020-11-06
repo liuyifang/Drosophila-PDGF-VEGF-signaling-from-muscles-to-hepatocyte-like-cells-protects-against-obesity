@@ -1,0 +1,117 @@
+---
+title: "5 SoupX output figures for supplemental"
+author: "Yifang Liu"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::html_clean:
+    code_folding: hide
+    fig_width: 10
+    fig_height: 10
+    highlight: kate
+    thumbnails: false
+    lightbox: true
+    gallery: true
+---
+
+```{r knitr_init, echo=FALSE, cache=FALSE}
+library(knitr)
+library(rmdformats)
+
+options(max.print = 200)
+opts_chunk$set(echo = TRUE,
+               cache = FALSE,
+               prompt = FALSE,
+               tidy = TRUE,
+               comment = NA,
+               message = FALSE,
+               warning = FALSE,
+               dev = c('png', 'pdf'),
+               fig.width = 10,
+               fig.height = 10,
+               fig.align = "center",
+               fig.path = '5_PDF_2020-02-05_SoupX_output_figures/',
+               dpi = 72)
+opts_knit$set(width = 75)
+```
+
+```{r setup}
+set.seed(123)
+
+npc <- 20
+# theta1 <- 2
+# theta2 <- 5
+# theta <- c(theta1, theta2)
+resolution <- 0.1
+selected_res <- paste0("RNA_snn_res.", resolution)
+pt_size <- 1
+# alpha <- 0.8
+
+# Suppress loading messages
+suppressPackageStartupMessages({
+  library(Matrix)
+  library(dplyr)
+  library(tidyverse)
+  library(Seurat)
+  library(cowplot)
+  library(Rcpp)
+  library(harmony)
+  library(SoupX)
+})
+```
+
+# SoupX
+
+```{r}
+fixed <- 0.45
+topN <- 20
+# dir.create("TSC1_EGFP_SoupX_fixed_0.45_191028")
+```
+
+# G0
+
+## G0: Picking soup specific genes
+
+```{r G0_tstGenes}
+dataDirs <- c("/Users/yifang/Projects/With/Arpan/SoupX/TSC1_EGFP_191028/AUG27_POOL_ACG-G_SI-GA-A1")
+scl <- load10X(dataDirs)
+plotMarkerDistribution(scl)
+```
+
+# G1
+
+## G1: Picking soup specific genes
+
+```{r G1_tstGenes}
+dataDirs <- c("/Users/yifang/Projects/With/Arpan/SoupX/TSC1_EGFP_191028/AUG27_POOL_ACG-G1_SI-GA-A3")
+scl <- load10X(dataDirs)
+plotMarkerDistribution(scl)
+```
+
+# Notes
+
+2020-02-05:
+
+  * SoupX output figures for supplemental.
+
+Tue Oct 29, 2019:
+
+  * Use SoupX fixed 0.45 to remove ambient RNA.
+
+Mon Oct 7, 2019:
+
+  * Add more sequence depth.
+
+Mon, Sep 30, 2019:
+
+  * remove genes: EGFP, Tsc1, gig. Then perform integrate analysis of EGFP, TSC1.
+
+Fri, Sep 20, 2019:
+
+  * First version for integrate analysis of EGFP, TSC1.
+
+# Session Info
+
+```{r sessioninfo, message=TRUE}
+sessionInfo()
+```
+

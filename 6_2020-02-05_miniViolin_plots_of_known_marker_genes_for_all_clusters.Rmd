@@ -1,0 +1,285 @@
+---
+title: "6 miniViolin plots of known marker genes for all clusters"
+author: "Yifang Liu"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::html_clean:
+    code_folding: hide
+    fig_width: 10
+    fig_height: 10
+    highlight: kate
+    thumbnails: false
+    lightbox: true
+    gallery: true
+---
+
+```{r knitr_init, echo=FALSE, cache=FALSE}
+library(knitr)
+library(rmdformats)
+
+options(max.print = 200)
+opts_chunk$set(echo = TRUE,
+               cache = FALSE,
+               prompt = FALSE,
+               tidy = TRUE,
+               comment = NA,
+               message = FALSE,
+               warning = FALSE,
+               dev = c("png", "pdf"),
+               fig.width = 10,
+               fig.height = 10,
+               fig.align = "center",
+               fig.path = "6_PDF_2020-02-05_miniViolin_plots_of_known_marker_genes_for_all_clusters/",
+               dpi = 72)
+opts_knit$set(width = 75)
+```
+
+```{r setup}
+set.seed(123)
+
+npc <- 20
+# theta1 <- 2
+# theta2 <- 5
+# theta <- c(theta1, theta2)
+resolution <- 0.1
+selected_res <- paste0("RNA_snn_res.", resolution)
+pt_size <- 1
+# alpha <- 0.8
+
+# Suppress loading messages
+suppressPackageStartupMessages({
+  library(Matrix)
+  library(dplyr)
+  library(tidyverse)
+  library(Seurat)
+  library(cowplot)
+  library(Rcpp)
+  library(harmony)
+  library(SoupX)
+})
+```
+
+```{r load_data}
+EGFP <- readRDS("Data/2020-02-05_EGFP_seurat_obj.Rds")
+Idents(EGFP) <- selected_res
+```
+
+# Markers Set1
+
+```{r}
+gene_list <- c(
+  "LpR1",
+  "FASN3",
+  # "Ten-a",
+  "salm",
+  # "Lsd-2",
+  "nmo",
+  "AkhR",
+  "daw",
+  "mdy",
+  "Pkn",
+  "luna",
+  "CG5151",
+  "Mhc"
+  # "MP2P"
+)
+```
+
+# miniViolin
+
+```{r miniViolin_set1}
+for (gene in gene_list) {
+  plot <- VlnPlot(EGFP, features = gene, pt.size = 0, combine = FALSE)
+  p <- plot[[1]] +
+    theme(legend.position = 'none') +
+    theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank()) +
+    ylab(gene) +
+    theme(plot.title = element_blank()) +
+    theme(axis.text.y = element_text(size = 3)) +
+    theme(text = element_text(size = 8))
+  assign(gene, p)
+}
+
+plot <- VlnPlot(EGFP, features = "Ten-a", pt.size = 0, combine = FALSE)
+Tena <- plot[[1]] +
+    theme(legend.position = 'none') +
+    theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank()) +
+    ylab("Ten-a") +
+    theme(plot.title = element_blank()) +
+    theme(axis.text.y = element_text(size = 3)) +
+    theme(text = element_text(size = 8))
+
+plot <- VlnPlot(EGFP, features = "Lsd-2", pt.size = 0, combine = FALSE)
+Lsd2 <- plot[[1]] +
+    theme(legend.position = 'none') +
+    theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank()) +
+    ylab("Lsd-2") +
+    theme(plot.title = element_blank()) +
+    theme(axis.text.y = element_text(size = 3)) +
+    theme(text = element_text(size = 8))
+ 
+x_label <- plot[[1]] +
+  theme(legend.position = 'none') +
+  ylab("") +
+  theme(plot.title = element_blank()) +
+  theme(axis.text.y = element_text(size = 3)) +
+  theme(text = element_text(size = 8)) +
+  theme(axis.text.x = element_text(size = 20))
+
+plot_grid(
+LpR1,
+FASN3,
+Tena,
+salm,
+Lsd2,
+nmo,
+AkhR,
+daw,
+mdy,
+Pkn,
+luna,
+CG5151,
+Mhc,
+# MP2P, 
+x_label, ncol = 1)
+```
+
+# Markers Set2
+
+```{r}
+gene_list <- c(
+"Mhc",
+"Mp20",
+"Act87E",
+"Act57B",
+"Mef2",
+"Cyp4g1",
+"Desat1",
+"CG18609",
+"CG17562",
+"btl",
+"trh",
+"Gasp",
+# "Pcp-1",
+"Cpr35B",
+"Cpr5C",
+"Cpr11A",
+"esg",
+"Dl",
+"bsh",
+"eater",
+"Hml"
+)
+```
+
+# miniViolin
+
+```{r miniViolin_set2}
+for (gene in gene_list) {
+  plot <- VlnPlot(EGFP, features = gene, pt.size = 0, combine = FALSE)
+  p <- plot[[1]] +
+    theme(legend.position = 'none') +
+    theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank()) +
+    ylab(gene) +
+    theme(plot.title = element_blank()) +
+    theme(axis.text.y = element_text(size = 3)) +
+    theme(text = element_text(size = 8))
+  assign(gene, p)
+}
+
+# plot <- VlnPlot(EGFP, features = "Pcp-1", pt.size = 0, combine = FALSE)
+# Pcp1 <- plot[[1]] +
+#     theme(legend.position = 'none') +
+#     theme(axis.title.x=element_blank(),
+#           axis.text.x=element_blank(),
+#           axis.ticks.x=element_blank()) +
+#     ylab("Pcp-1") +
+#     theme(plot.title = element_blank()) +
+#     theme(axis.text.y = element_text(size = 3)) +
+#     theme(text = element_text(size = 8))
+
+x_label <- plot[[1]] +
+  theme(legend.position = 'none') +
+  ylab("") +
+  theme(plot.title = element_blank()) +
+  theme(axis.text.y = element_text(size = 3)) +
+  theme(text = element_text(size = 8)) +
+  theme(axis.text.x = element_text(size = 20))
+
+plot_grid(
+Mhc,
+Mp20,
+Act87E,
+Act57B,
+Mef2,
+Cyp4g1,
+Desat1,
+CG18609,
+CG17562,
+btl,
+trh,
+Gasp,
+# Pcp1,
+Cpr35B,
+Cpr5C,
+Cpr11A,
+esg,
+Dl,
+bsh,
+eater,
+Hml,
+x_label, ncol = 1)
+```
+
+# Notes
+
+2020-02-05:
+
+  * miniViolin plots of known marker genes for all clusters.
+
+Tue Dec 10, 2019:
+
+  * Violin plot for EGFP and TSC separately for the last set of genes; Combined violin plot for the same; Combined dot plot for top 5 genes by fold change in all clusters (EGFP: Green and TSC: Red).
+
+Wed Dec 5, 2019:
+
+  * Removed three genes: Lsd-1, mdy, Fas1.
+
+Wed Dec 4, 2019:
+
+  * Use these selected genes for cluster 0, 1 and 2. Cluster 0: Pli, LpR2, path, apolpp, FASN1, Hnf4, Lsd-1, mdy; Cluster 1: sls, Mlc2, Mlp60A, Mhc, Mf, Mp20; Cluster 2: FASN3, FASN2, LpR1, salm, ImpL2, Fas1.
+
+Sun Dec 1, 2019:
+
+  * Dot plot and mini violin plots: 3 top expressed marker genes for dot plot; 2 top for mini-violin plot.
+
+Tue Oct 29, 2019:
+
+  * Use SoupX fixed 0.45 to remove ambient RNA.
+
+Mon Oct 7, 2019:
+
+  * Add more sequence depth.
+
+Mon, Sep 30, 2019:
+
+  * Remove genes: EGFP, Tsc1, gig. Then perform integrate analysis of EGFP, TSC1.
+
+Fri, Sep 20, 2019:
+
+  * First version for integrate analysis of EGFP, TSC1.
+
+# Session Info
+
+```{r sessioninfo, message=TRUE}
+sessionInfo()
+```
+
